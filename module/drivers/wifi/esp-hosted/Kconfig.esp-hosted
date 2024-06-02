@@ -1,0 +1,23 @@
+# esp-hosted WiFi driver options
+
+menuconfig WIFI_ESP_HOSTED
+    bool "Espressif esp-hosted device support"
+    default y
+    depends on DT_HAS_ESPRESSIF_ESP_HOSTED_ENABLED
+    select WIFI
+    select WIFI_OFFLOAD
+    select NET_L2_WIFI_MGMT
+
+if WIFI_ESP_HOSTED
+
+config WIFI_ESP_HOSTED_SPI
+    bool "esp-hosted SPI interface"
+    default y
+    select SPI
+
+config WIFI_ESP_HOSTED_SDIO
+    bool "esp-hosted SDIO interface"
+    default n
+    select SDIO
+
+endif # WIFI_ESP_HOSTED

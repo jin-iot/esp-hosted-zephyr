@@ -1,0 +1,17 @@
+description: esp-hosted WiFi module
+
+compatible: "espressif,esp-hosted"
+
+properties:
+  resetn-gpios:
+    type: phandle-array
+    required: true
+
+  data-ready-gpios:
+    type: phandle-array
+    required: true
+
+  handshake-gpios:
+    type: phandle-array
+
+include: spi-device.yaml

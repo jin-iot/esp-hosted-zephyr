@@ -1,14 +1,43 @@
+/*
+ * Copyright (c) 2024 Jin (juanjin.dev@gmail.com)
+ *
+ * SPDX-License-Identifier: BSL-1.0
+ */
+
 #ifndef ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_
 #define ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/net/net_pkt.h>
+#include <zephyr/net/wifi_mgmt.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 
+struct esph_bus_trans_header {
+    uint8_t if_type : 4;
+    uint8_t if_no : 4;
+    uint8_t flags;
+    uint8_t pkt_type;
+    uint8_t reserved1;
+    uint16_t len;
+    uint16_t offset;
+    uint16_t cksm;
+    uint16_t reserved2;
+
+    uint8_t *payload;
+};
+
+struct esph_bus_trans_data {
+    struct esph_bus_trans_header header;
+    uint8_t payload[1500];
+};
+
 struct esph_bus_ops {
-    int (*init)(const struct device *esp);
+    int (*init)(const struct device *);
+    int (*send)(const struct device *, struct net_pkt *);
+    int (*scan)(const struct device *, scan_result_cb_t);
 };
 
 struct esph_bus_data {
@@ -20,19 +49,26 @@ struct esph_config {
     struct esph_bus_data *bus_data;
 };
 
-enum esph_state {
-    ESPH_STATE_IDLE,
-    ESPH_STATE_INIT,
-    ESPH_STATE_READY,
-    ESPH_STATE_CONNECTED,
-    ESPH_STATE_DISCONNECTED,
-    ESPH_STATE_ERROR
+enum esph_drv_state {
+    ESPH_DRV_STATE_INIT,
+    ESPH_DRV_STATE_READY,
+    ESPH_DRV_STATE_ERROR,
+};
+
+enum esph_trans_state {
+    ESPH_TRANS_STATE_IDLE,
+    ESPH_TRANS_STATE_INIT,
+    ESPH_TRANS_STATE_DATA_READY,
 };
 
 struct esph_data {
     const struct device *dev;
     struct net_if *net_if;
-    enum esph_state state;
+    uint8_t bus_buf[1600];
+    struct esph_bus_trans_data trans_data;
+    enum esph_drv_state drv_state;
+    enum esph_trans_state trans_state;
+    struct k_work recv_work;
 };
 
 #if defined(CONFIG_WIFI_ESP_HOSTED_SPI)
@@ -50,11 +86,14 @@ struct esph_spi_data {
     struct esph_data base;
     struct gpio_callback handshake_cb;
     struct gpio_callback data_ready_cb;
-    struct k_work data_ready_work;
-    struct k_work handshake_work;
+    struct k_work trans_work;
 };
 
-#define ESPH_SPI_OPS (SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_WORD_SET(8))
+#define ESPH_SPI_OPS (SPI_OP_MODE_MASTER | \
+                      SPI_MODE_CPHA | \
+                      SPI_MODE_CPOL | \
+                      SPI_TRANSFER_MSB | \
+                      SPI_WORD_SET(8))
 #define ESPH_DEFINE_SPI_BUS(inst) \
         static struct esph_spi_bus esph_bus_data_##inst = { \
             .data.bus_ops = &__esph_spi_bus_ops, \
@@ -63,11 +102,7 @@ struct esph_spi_data {
             .data_ready = GPIO_DT_SPEC_INST_GET(inst, data_ready_gpios), \
             .handshake = GPIO_DT_SPEC_INST_GET(inst, handshake_gpios), \
         }; \
-        static struct esph_spi_data esph_data_##inst = { \
-            .base = { \
-                .state = ESPH_STATE_IDLE \
-            }, \
-        };
+        static struct esph_spi_data esph_data_##inst;
         
 #endif // CONFIG_WIFI_ESP_HOSTED_SPI
 
@@ -120,21 +155,36 @@ enum esph_if_type {
 	ESPH_IF_TYPE_HCI,
 	ESPH_IF_TYPE_INTERNAL,
 	ESPH_IF_TYPE_TEST,
-	ESPH_IF_TYPE_MAX,
 };
 
-struct esph_cmd_header {
-    uint8_t cmd_code;
-    uint8_t cmd_status;
-    uint16_t len;
-    uint16_t seq_num;
-    uint8_t reserved1;
-	uint8_t reserved2;
+enum esph_pkt_type {
+	ESPH_PKT_TYPE_DATA,
+	ESPH_PKT_TYPE_COMMAND_REQUEST,
+	ESPH_PKT_TYPE_COMMAND_RESPONSE,
+	ESPH_PKT_TYPE_EVENT,
+	ESPH_PKT_TYPE_EAPOL,
 };
 
-static inline int esph_bus_init(const struct device *dev) {
-    const struct esph_config *config = dev->config;
-    return config->bus_data->bus_ops->init(dev);
+static inline int esph_bus_init(const struct device *esp) {
+    const struct esph_config *config = esp->config;
+    return config->bus_data->bus_ops->init(esp);
+}
+
+static inline int esph_bus_scan(const struct device *esp,
+                    scan_result_cb_t cb)
+{
+    const struct esph_config *config = esp->config;
+    return config->bus_data->bus_ops->scan(esp, cb);
+}
+
+static inline int esph_bus_send(const struct device *esp, struct net_pkt *pkt) {
+    const struct esph_config *config = esp->config;
+    return config->bus_data->bus_ops->send(esp, pkt);
+}
+
+void __esph_proto_make_scan(struct esph_bus_trans_header *hdr);
+static inline void esph_proto_make_scan(struct esph_bus_trans_header *hdr) {
+    __esph_proto_make_scan(hdr);
 }
 
 #endif // ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_

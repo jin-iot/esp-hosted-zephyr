@@ -15,8 +15,8 @@ config WIFI_ESP_HOSTED_SPI
     default y
     select SPI
 
-config WIFI_ESP_HOSTED_SDIO
-    bool "esp-hosted SDIO interface"
+config WIFI_ESP_HOSTED_SDHC
+    bool "esp-hosted SDHC interface"
     default n
     select SDIO
 

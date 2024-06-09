@@ -14,106 +14,71 @@ LOG_MODULE_DECLARE(wifi_esp_hosted);
 static void esph_spi_handle_handshake_irq(const struct device *port,
                 struct gpio_callback *cb, gpio_port_pins_t pins)
 {
-    struct esph_spi_data *bus = CONTAINER_OF(cb, struct esph_spi_data, data_ready_cb);
-    k_work_submit(&bus->trans_work);
+    struct esph_spi_data *data =
+        CONTAINER_OF(cb, struct esph_spi_data, data_ready_cb);
+    k_work_submit(&data->trans_work);
 }
 
 static void esph_spi_handle_data_ready_irq(const struct device *port,
                 struct gpio_callback *cb, gpio_port_pins_t pins)
 {
-    struct esph_spi_data *bus = CONTAINER_OF(cb, struct esph_spi_data, data_ready_cb);
-    k_work_submit(&bus->trans_work);
+    struct esph_spi_data *data =
+        CONTAINER_OF(cb, struct esph_spi_data, data_ready_cb);
+    k_work_submit(&data->trans_work);
 }
 
-static int esph_spi_reset(const struct device *esp) {
-    int ret;
-    const struct esph_config *config = esp->config;
-    const struct esph_spi_bus *bus = (const struct esph_spi_bus *)config->bus_data;
-
-    ret = gpio_pin_set_dt(&bus->resetn, 1);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = gpio_pin_set_dt(&bus->resetn, 0);
-    if (ret < 0) {
-        goto out;
-    }
-
-    k_sleep(K_MSEC(300));
-
-out:
-    return ret;
-}
-
-static int esph_spi_read_header(const struct device *esp,
-                struct esph_bus_trans_header *header)
+static int esph_spi_read_data(const struct device *esp,
+                        struct esph_proto_hdr *header)
 {
-    const struct esph_config *config = esp->config;
-    const struct esph_spi_bus *bus = (const struct esph_spi_bus *)config->bus_data;
-    struct esph_spi_data *data = esp->data;
-    const struct spi_dt_spec *spi = &bus->bus;
-    struct spi_buf rx_buf = {
-        .buf = ((struct esph_data *)data)->bus_buf,
-        .len = sizeof(((struct esph_data *)data)->bus_buf)
-    };
-    struct spi_buf_set rx = {
-        .buffers = &rx_buf,
-        .count = 1
-    };
+    // return spi_read_dt(spi, &rx);
+    return 0;
+}
 
-    return spi_read_dt(spi, &rx);
+static int esph_spi_process(const struct device *esp) {
+    int handshake;
+    int data_ready;
+    int ret = -EAGAIN;
+
+    const struct esph_spi_config *cfg = esp->config;
+
+    handshake = gpio_pin_get_dt(&cfg->handshake);
+    data_ready = gpio_pin_get_dt(&cfg->data_ready);
+
+    if (handshake == 1) {
+
+    }
+
+    return ret;
 }
 
 static void esph_spi_trans_work(struct k_work *work) {
     int ret;
-    int handshake;
-    int data_ready;
     struct esph_spi_data *data =
         CONTAINER_OF(work, struct esph_spi_data, trans_work);
     const struct device *esp = data->base.dev;
-    const struct esph_config *config = esp->config;
-    const struct esph_spi_bus *bus =
-        (const struct esph_spi_bus *)config->bus_data;
-
-    handshake = gpio_pin_get_dt(&bus->handshake);
-    data_ready = gpio_pin_get_dt(&bus->data_ready);
-
-    if (handshake == 1) {
-
+    ret = esph_spi_process(esp);
+    if (ret < 0) {
+        LOG_WARN("Failed to process SPI data: %d", ret);
     }
 }
 
 static int esph_spi_config_gpios(const struct device *esp) {
     int ret = 0;
-    const struct esph_config *config = esp->config;
-    struct esph_spi_data *data = (struct esph_spi_data *)esp->data;
-    const struct esph_spi_bus *bus =
-        (const struct esph_spi_bus *)config->bus_data;
+    const struct esph_spi_config *cfg = esp->config;
+    struct esph_spi_data *data = esp->data;
 
-    if (bus->data_ready.port == NULL ||
-        bus->handshake.port == NULL ||
-        bus->resetn.port == NULL)
-    {
-        ret = -ENODEV;
-        goto out;
-    } 
-
-    ret |= gpio_pin_configure_dt(&bus->data_ready, GPIO_INPUT);
-    ret |= gpio_pin_interrupt_configure_dt(&bus->data_ready, GPIO_INT_EDGE_RISING);
+    ret |= gpio_pin_configure_dt(&cfg->data_ready, GPIO_INPUT);
+    ret |= gpio_pin_interrupt_configure_dt(&cfg->data_ready, GPIO_INT_EDGE_RISING);
     gpio_init_callback(&data->data_ready_cb,
-        esph_spi_handle_data_ready_irq, BIT(bus->data_ready.pin));
-    ret |= gpio_add_callback(bus->data_ready.port, &data->data_ready_cb);
+        esph_spi_handle_data_ready_irq, BIT(cfg->data_ready.pin));
+    ret |= gpio_add_callback_dt(&cfg->data_ready, &data->data_ready_cb);
 
-    ret |= gpio_pin_configure_dt(&bus->handshake, GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
-    ret |= gpio_pin_interrupt_configure_dt(&bus->handshake, GPIO_INT_EDGE_RISING);
+    ret |= gpio_pin_configure_dt(&cfg->handshake, GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
+    ret |= gpio_pin_interrupt_configure_dt(&cfg->handshake, GPIO_INT_EDGE_RISING);
     gpio_init_callback(&data->handshake_cb,
-        esph_spi_handle_handshake_irq, BIT(bus->handshake.pin));
-    ret |= gpio_add_callback(bus->handshake.port, &data->handshake_cb);
+        esph_spi_handle_handshake_irq, BIT(cfg->handshake.pin));
+    ret |= gpio_add_callback_dt(&cfg->handshake, &data->handshake_cb);
 
-    ret |= gpio_pin_configure_dt(&bus->resetn, GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
-
-out:
     return ret;
 }
 
@@ -128,13 +93,13 @@ static int esph_spi_bus_init(const struct device *esp) {
         goto out;
     }
 
-    ret = esph_spi_reset(esp);
+    ret = esph_reset(esp);
 
 out:
     return ret;
 }
 
 struct esph_bus_ops __esph_spi_bus_ops = {
-    .init = esph_spi_bus_init
-
+    .init = esph_spi_bus_init,
+    .process = esph_spi_process,
 };

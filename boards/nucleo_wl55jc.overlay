@@ -9,6 +9,6 @@
         spi-max-frequency = <12500000>;
         handshake-gpios = <&gpioa 9 (GPIO_ACTIVE_LOW)>;
         data-ready-gpios = <&gpioc 2 (GPIO_ACTIVE_LOW)>;
-        resetn-gpios = <&gpioc 1 (GPIO_ACTIVE_LOW)>;
+        reset-gpios = <&gpioc 1 (GPIO_ACTIVE_LOW)>;
     };
 };

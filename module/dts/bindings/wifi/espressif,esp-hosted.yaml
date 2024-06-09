@@ -3,7 +3,7 @@ description: esp-hosted WiFi module
 compatible: "espressif,esp-hosted"
 
 properties:
-  resetn-gpios:
+  reset-gpios:
     type: phandle-array
     required: true
 

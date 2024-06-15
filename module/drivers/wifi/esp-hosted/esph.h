@@ -17,15 +17,20 @@
 #include <stdint.h>
 
 struct esph_proto_hdr {
-#define ESPH_IF_TYPE_STA 0x0
-#define ESPH_IF_TYPE_AP 0x1
-#define ESPH_IF_TYPE_HCI 0x2
-#define ESPH_IF_TYPE_INTERNAL 0x3
-#define ESPH_IF_TYPE_TEST 0x4
     uint8_t if_type : 4;
+#define ESPH_IF_TYPE_STA      (uint8_t)0x0
+#define ESPH_IF_TYPE_AP       (uint8_t)0x1
+#define ESPH_IF_TYPE_HCI      (uint8_t)0x2
+#define ESPH_IF_TYPE_INTERNAL (uint8_t)0x3
+#define ESPH_IF_TYPE_TEST     (uint8_t)0x4
     uint8_t if_no : 4;
     uint8_t flags;
     uint8_t pkt_type;
+#define ESPH_PKT_TYPE_DATA    (uint8_t)0x00
+#define ESPH_PKT_TYPE_CMD_REQ (uint8_t)0x01
+#define ESPH_PKT_TYPE_CMD_RES (uint8_t)0x02
+#define ESPH_PKT_TYPE_EVT     (uint8_t)0x03
+#define ESPH_PKT_TYPE_EAPOL   (uint8_t)0x04
     uint8_t reserved1;
     uint16_t len;
     uint16_t offset;

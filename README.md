@@ -8,8 +8,11 @@ details - https://github.com/espressif/esp-hosted
 ### esp-hosted data types
  -  <table>
         <tr>
-            <td colspan="3">
+            <td colspan="2">
                 <b>struct esph_proto_hdr</b>
+            </td>
+            <td>
+                Main header of the esp-hosted protocol
             </td>
         </tr>
         <tr>
@@ -33,44 +36,56 @@ details - https://github.com/espressif/esp-hosted
         <tr>
             <td>if_no</td>
             <td>u4</td>
-            <td>Interface type</td>
-            <td>0x0 or 0xF({Wakeup on FourWayHandshake}, if using SDIO)</td>
+            <td>Interface number</td>
+            <td>0x0 or 0xF(Dummy indicator)</td>
         </tr>
         <tr>
             <td>flags</td>
             <td>u8</td>
             <td>Flags</td>
-            <td>any</td>
+            <td>0x0 or 0xFF(Wakeup)</td>
         </tr>
         <tr>
             <td>pkt_type</td>
             <td>u8</td>
             <td>Packet type</td>
+            <td>
+                ESPH_PKT_TYPE_DATA<br>
+                ESPH_PKT_TYPE_CMD_REQ<br>
+                ESPH_PKT_TYPE_CMD_RES<br>
+                ESPH_PKT_TYPE_EVT<br>
+                ESPH_PKT_TYPE_EAPOL
+            </td>
         </tr>
         <tr>
             <td><del>reserved1</del></td>
             <td>u8</td>
             <td><del>Reserved</del></td>
+            <td>None</td>
         </tr>
         <tr>
             <td>len</td>
             <td>u16</td>
             <td>Payload length</td>
+            <td>0 ~ u16 max</td>
         </tr>
         <tr>
             <td>offset</td>
             <td>u16</td>
-            <td>Payload offset</td>
+            <td>Payload offset(?) I don't know yet</td>
+            <td>Mostly size of this type</td>
         </tr>
         <tr>
             <td>cksm</td>
             <td>u16</td>
             <td>Checksum</td>
+            <td>Sum of the whole payload buffer</td>
         </tr>
         <tr>
             <td><del>reserved2</del></td>
             <td>u8</td>
             <td><del>Reserved</del></td>
+            <td>None</td>
         </tr>
         <tr>
             <td>
@@ -80,41 +95,75 @@ details - https://github.com/espressif/esp-hosted
             </td>
             <td>union (u8)</td>
             <td>Multi-purpose data</td>
+            <td>Not used yet</td>
         </tr>
     </table>
 
- -  <table>
-        <tr>
-            <td colspan="3">
-                <b>enum esph_pkt_type</b>
-            </td>
-        </tr>
-        <tr><td>ESPH_PKT_TYPE_DATA</td></tr>
-        <tr><td>ESPH_PKT_TYPE_COMMAND_REQUEST</td></tr>
-        <tr><td>ESPH_PKT_TYPE_COMMAND_RESPONSE</td></tr>
-        <tr><td>ESPH_PKT_TYPE_EVENT</td></tr>
-        <tr><td>ESPH_PKT_TYPE_EAPOL</td></tr>
-    </table>
-
--   <table>
-        <tr>
-            <td colspan="3">
-                <b>enum esph_pkt_type</b>
-            </td>
-        </tr>
-        <tr><td>ESPH_PKT_TYPE_DATA</td></tr>
-        <tr><td>ESPH_PKT_TYPE_COMMAND_REQUEST</td></tr>
-        <tr><td>ESPH_PKT_TYPE_COMMAND_RESPONSE</td></tr>
-        <tr><td>ESPH_PKT_TYPE_EVENT</td></tr>
-        <tr><td>ESPH_PKT_TYPE_EAPOL</td></tr>
-    </table>
+     -  <table>
+            <tr>
+                <td colspan="2">
+                    <b>struct esph_proto_cmd_hdr</b>
+                </td>
+                <td>
+                    payload header for ESPH_PKT_TYPE_CMD_REQ and ESPH_PKT_TYPE_CMD_RES
+                </td>
+            </tr>
+            <tr>
+                <td><b>field</b></td>
+                <td><b>type</b></td>
+                <td><b>desc</b></td>
+                <td><b>possible values</b></td>
+            </tr>
+            <tr>
+                <td>cmd</td>
+                <td>u8</td>
+                <td>Command code</td>
+                <td>
+                    ESPH_PROTO_CMD_INIT_IF<br>
+                    ESPH_PROTO_CMD_SET_MAC<br>
+                    ESPH_PROTO_CMD_GET_MAC<br>
+                    ESPH_PROTO_CMD_SCAN_REQ<br>
+                    ESPH_PROTO_CMD_STA_CONNECT<br>
+                    ESPH_PROTO_CMD_STA_DISCONNECT<br>
+                    ESPH_PROTO_CMD_DEINIT_IF<br>
+                    ESPH_PROTO_CMD_ADD_KEY<br>
+                    ESPH_PROTO_CMD_DEL_KEY<br>
+                    ESPH_PROTO_CMD_SET_DEFAULT_KEY<br>
+                    ESPH_PROTO_CMD_STA_AUTH<br>
+                    ESPH_PROTO_CMD_STA_ASSOC<br>
+                    ESPH_PROTO_CMD_SET_IP_ADDR<br>
+                    ESPH_PROTO_CMD_SET_MCAST_MAC_ADDR<br>
+                    ESPH_PROTO_CMD_GET_TXPOWER<br>
+                    ESPH_PROTO_CMD_SET_TXPOWER<br>
+                    ESPH_PROTO_CMD_GET_REG_DOMAIN<br>
+                    ESPH_PROTO_CMD_SET_REG_DOMAIN<br>
+                    ESPH_PROTO_CMD_RAW_TP_ESP_TO_HOST<br>
+                    ESPH_PROTO_CMD_RAW_TP_HOST_TO_ESP<br>
+                    ESPH_PROTO_CMD_SET_WOW_CONFIG
+                </td>
+            </tr>
+            <tr>
+                <td>status</td>
+                <td>u8</td>
+                <td>Status code</td>
+                <td>
+                    ESPH_PROTO_CMD_STATUS_PENDING<br>
+                    ESPH_PROTO_CMD_STATUS_FAIL<br>
+                    ESPH_PROTO_CMD_STATUS_SUCCESS<br>
+                    ESPH_PROTO_CMD_STATUS_BUSY<br>
+                    ESPH_PROTO_CMD_STATUS_UNSUPPORTED<br>
+                    ESPH_PROTO_CMD_STATUS_INVALID<br>
+                </td>
+            </tr>
+        </table>
 
 ### Sequence
 1. init
     ```mermaid
     sequenceDiagram
-    host->>host: setup
+    host->>host: reset pin setup
     host->>esp: reset pin 1 0
+    host-->>host: sleep 3s
     esp->>esp: reboot
     esp-->>host: proto_hdr + evt_hdr + bootup_evt
     ```

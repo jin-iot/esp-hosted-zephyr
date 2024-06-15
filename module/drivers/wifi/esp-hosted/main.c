@@ -5,7 +5,6 @@
  */
 
 #define DT_DRV_COMPAT espressif_esp_hosted
-
 #include "esph.h"
 
 #include <zephyr/net/ethernet.h>

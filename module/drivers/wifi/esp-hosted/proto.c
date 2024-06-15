@@ -12,8 +12,35 @@
  * @brief Command header
  */
 struct esph_proto_cmd_hdr {
-    uint8_t cmd_code;
-    uint8_t cmd_status;
+    uint8_t cmd;
+#define ESPH_PROTO_CMD_INIT_IF            (uint8_t)0x01
+#define ESPH_PROTO_CMD_SET_MAC            (uint8_t)0x02
+#define ESPH_PROTO_CMD_GET_MAC            (uint8_t)0x03
+#define ESPH_PROTO_CMD_SCAN_REQ           (uint8_t)0x04
+#define ESPH_PROTO_CMD_STA_CONNECT        (uint8_t)0x05
+#define ESPH_PROTO_CMD_STA_DISCONNECT     (uint8_t)0x06
+#define ESPH_PROTO_CMD_DEINIT_IF          (uint8_t)0x07
+#define ESPH_PROTO_CMD_ADD_KEY            (uint8_t)0x08
+#define ESPH_PROTO_CMD_DEL_KEY            (uint8_t)0x09
+#define ESPH_PROTO_CMD_SET_DEFAULT_KEY    (uint8_t)0x0A
+#define ESPH_PROTO_CMD_STA_AUTH           (uint8_t)0x0B
+#define ESPH_PROTO_CMD_STA_ASSOC          (uint8_t)0x0C
+#define ESPH_PROTO_CMD_SET_IP_ADDR        (uint8_t)0x0D
+#define ESPH_PROTO_CMD_SET_MCAST_MAC_ADDR (uint8_t)0x0E
+#define ESPH_PROTO_CMD_GET_TXPOWER        (uint8_t)0x0F
+#define ESPH_PROTO_CMD_SET_TXPOWER        (uint8_t)0x10
+#define ESPH_PROTO_CMD_GET_REG_DOMAIN     (uint8_t)0x11
+#define ESPH_PROTO_CMD_SET_REG_DOMAIN     (uint8_t)0x12
+#define ESPH_PROTO_CMD_RAW_TP_ESP_TO_HOST (uint8_t)0x13
+#define ESPH_PROTO_CMD_RAW_TP_HOST_TO_ESP (uint8_t)0x14
+#define ESPH_PROTO_CMD_SET_WOW_CONFIG     (uint8_t)0x15
+    uint8_t status;
+#define ESPH_PROTO_CMD_STATUS_PENDING     (uint8_t)0x01
+#define ESPH_PROTO_CMD_STATUS_FAIL        (uint8_t)0x02
+#define ESPH_PROTO_CMD_STATUS_SUCCESS     (uint8_t)0x03
+#define ESPH_PROTO_CMD_STATUS_BUSY        (uint8_t)0x04
+#define ESPH_PROTO_CMD_STATUS_UNSUPPORTED (uint8_t)0x05
+#define ESPH_PROTO_CMD_STATUS_INVALID     (uint8_t)0x06
     uint16_t len;
     uint16_t seq_no;
     uint8_t reserved1;
@@ -24,13 +51,13 @@ struct esph_proto_cmd_hdr {
  * @brief Event header
  */
 struct esph_proto_evt_hdr {
+    uint8_t evt;
 #define ESPH_PROTO_EVT_BOOTUP (uint8_t)1U
 #define ESPH_PROTO_EVT_SCAN_RESULT (uint8_t)1U
 #define ESPH_PROTO_EVT_STA_CONNECT (uint8_t)2U
 #define ESPH_PROTO_EVT_STA_DISCONNECT (uint8_t)3U
 #define ESPH_PROTO_EVT_AUTH_RX (uint8_t)4U
 #define ESPH_PROTO_EVT_ASSOC_RX (uint8_t)5U
-    uint8_t evt_code;
 	uint8_t status;
 	uint16_t len;
 } __packed;
@@ -97,14 +124,6 @@ enum esph_cmd_code {
 	ESPH_CMD_CODE_RAW_TP_HOST_TO_ESP,
 	ESPH_CMD_CODE_SET_WOW_CONFIG,
 	ESPH_CMD_CODE_MAX,
-};
-
-enum esph_pkt_type {
-	ESPH_PKT_TYPE_DATA,
-	ESPH_PKT_TYPE_COMMAND_REQUEST,
-	ESPH_PKT_TYPE_COMMAND_RESPONSE,
-	ESPH_PKT_TYPE_EVENT,
-	ESPH_PKT_TYPE_EAPOL,
 };
 
 static inline void esph_proto_make_req(struct esph_proto_hdr *hdr,

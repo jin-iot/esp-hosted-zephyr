@@ -11,7 +11,7 @@ details - https://github.com/espressif/esp-hosted
             <td colspan="2">
                 <b>struct esph_proto_hdr</b>
             </td>
-            <td>
+            <td colspan="2">
                 Main header of the esp-hosted protocol
             </td>
         </tr>
@@ -65,19 +65,19 @@ details - https://github.com/espressif/esp-hosted
         </tr>
         <tr>
             <td>len</td>
-            <td>u16</td>
+            <td>le16</td>
             <td>Payload length</td>
-            <td>0 ~ u16 max</td>
+            <td>0 ~ le16 max</td>
         </tr>
         <tr>
             <td>offset</td>
-            <td>u16</td>
+            <td>le16</td>
             <td>Payload offset(?) I don't know yet</td>
             <td>Mostly size of this type</td>
         </tr>
         <tr>
             <td>cksm</td>
-            <td>u16</td>
+            <td>le16</td>
             <td>Checksum</td>
             <td>Sum of the whole payload buffer</td>
         </tr>
@@ -104,7 +104,7 @@ details - https://github.com/espressif/esp-hosted
                 <td colspan="2">
                     <b>struct esph_proto_cmd_hdr</b>
                 </td>
-                <td>
+                <td colspan="2">
                     payload header for ESPH_PKT_TYPE_CMD_REQ and ESPH_PKT_TYPE_CMD_RES
                 </td>
             </tr>
@@ -155,15 +155,92 @@ details - https://github.com/espressif/esp-hosted
                     ESPH_PROTO_CMD_STATUS_INVALID<br>
                 </td>
             </tr>
+            <tr>
+                <td>len</td>
+                <td>le16</td>
+                <td>Command payload length</td>
+                <td>0 ~ le16 max</td>
+            </tr>
+            <tr>
+                <td>seq_no</td>
+                <td>le16</td>
+                <td>Sequence number</td>
+                <td>0 ~ le16 max</td>
+            </tr>
+            <tr>
+                <td><del>reserved1</del></td>
+                <td>u8</td>
+                <td><del>Reserved</del></td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><del>reserved2</del></td>
+                <td>u8</td>
+                <td><del>Reserved</del></td>
+                <td>None</td>
+            </tr>
+        </table>
+
+     -  <table>
+            <tr>
+                <td colspan="2">
+                    <b>struct esph_proto_evt_hdr</b>
+                </td>
+                <td colspan="2">
+                    payload header for ESPH_PKT_TYPE_EVT
+                </td>
+            </tr>
+            <tr>
+                <td><b>field</b></td>
+                <td><b>type</b></td>
+                <td><b>desc</b></td>
+                <td><b>possible values</b></td>
+            </tr>
+            <tr>
+                <td>evt</td>
+                <td>u8</td>
+                <td>Event code</td>
+                <td>
+                    ESPH_PROTO_EVT_BOOTUP<br>
+                    ESPH_PROTO_EVT_SCAN_RESULT<br>
+                    ESPH_PROTO_EVT_STA_CONNECT<br>
+                    ESPH_PROTO_EVT_STA_DISCONNECT<br>
+                    ESPH_PROTO_EVT_AUTH_RX<br>
+                    ESPH_PROTO_EVT_ASSOC_RX
+                </td>
+            </tr>
+            <tr>
+                <td>status</td>
+                <td>u8</td>
+                <td>Error status</td>
+                <td>
+                    0: No error,
+                    else: Error
+                </td>
+            </tr>
+            <tr>
+                <td>len</td>
+                <td>Event data length</td>
+                <td>le16</td>
+                <td>0 ~ le16 max</td>
+            </tr>
         </table>
 
 ### Sequence
-1. init
+1. device init
     ```mermaid
     sequenceDiagram
     host->>host: reset pin setup
     host->>esp: reset pin 1 0
-    host-->>host: sleep 3s
+    host-->>host: sleep 300ms
     esp->>esp: reboot
-    esp-->>host: proto_hdr + evt_hdr + bootup_evt
+    esp-->>host: proto_hdr(ESPH_IF_TYPE_INTERNAL + ) + evt_hdr + bootup_evt
+    ```
+
+2. netif init
+    ```mermaid
+    sequenceDiagram
+    host->>esp: proto_hdr(ESPH_IF_TYPE_STA + ESPH_PKT_TYPE_CMD_REQ) + cmd_hdr(ESPH_PROTO_CMD_INIT_IF)
+    esp->>esp: STA init
+    esp-->>host: proto_hdr(ESPH_IF_TYPE_STA + ESPH_PKT_TYPE_CMD_RES) + cmd_hdr(ESPH_PROTO_CMD_INIT_IF)
     ```

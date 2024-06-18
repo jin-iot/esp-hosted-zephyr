@@ -9,6 +9,37 @@
 #include <zephyr/net/net_ip.h>
 
 /**
+ * @brief Protocol header
+ */
+
+struct esph_proto_hdr {
+    uint8_t if_type : 4;
+#define ESPH_IF_TYPE_STA      (uint8_t)0x0
+#define ESPH_IF_TYPE_AP       (uint8_t)0x1
+#define ESPH_IF_TYPE_HCI      (uint8_t)0x2
+#define ESPH_IF_TYPE_INTERNAL (uint8_t)0x3
+#define ESPH_IF_TYPE_TEST     (uint8_t)0x4
+    uint8_t if_no : 4;
+    uint8_t flags;
+    uint8_t pkt_type;
+#define ESPH_PKT_TYPE_DATA    (uint8_t)0x00
+#define ESPH_PKT_TYPE_CMD_REQ (uint8_t)0x01
+#define ESPH_PKT_TYPE_CMD_RES (uint8_t)0x02
+#define ESPH_PKT_TYPE_EVT     (uint8_t)0x03
+#define ESPH_PKT_TYPE_EAPOL   (uint8_t)0x04
+    uint8_t reserved1;
+    uint16_t len;
+    uint16_t offset;
+    uint16_t cksm;
+    uint8_t reserved2;
+    union {
+        uint8_t reserved3;
+        uint8_t hci_pkt_type;
+        uint8_t priv_pkt_type;
+    };
+} __packed;
+
+/**
  * @brief Command header
  */
 struct esph_proto_cmd_hdr {
@@ -131,7 +162,7 @@ static inline void esph_proto_make_req(struct esph_proto_hdr *hdr,
 {
     memset(hdr, 0, sizeof(*hdr));
 
-    hdr->pkt_type = ESPH_PKT_TYPE_COMMAND_REQUEST;
+    hdr->pkt_type = ESPH_PKT_TYPE_CMD_REQ;
     hdr->if_type = ESPH_IF_TYPE_STA;
     hdr->len = sys_cpu_to_le16(sizeof(*hdr));
     hdr->offset = sys_cpu_to_le16(sizeof(*hdr));

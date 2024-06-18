@@ -16,33 +16,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct esph_proto_hdr {
-    uint8_t if_type : 4;
-#define ESPH_IF_TYPE_STA      (uint8_t)0x0
-#define ESPH_IF_TYPE_AP       (uint8_t)0x1
-#define ESPH_IF_TYPE_HCI      (uint8_t)0x2
-#define ESPH_IF_TYPE_INTERNAL (uint8_t)0x3
-#define ESPH_IF_TYPE_TEST     (uint8_t)0x4
-    uint8_t if_no : 4;
-    uint8_t flags;
-    uint8_t pkt_type;
-#define ESPH_PKT_TYPE_DATA    (uint8_t)0x00
-#define ESPH_PKT_TYPE_CMD_REQ (uint8_t)0x01
-#define ESPH_PKT_TYPE_CMD_RES (uint8_t)0x02
-#define ESPH_PKT_TYPE_EVT     (uint8_t)0x03
-#define ESPH_PKT_TYPE_EAPOL   (uint8_t)0x04
-    uint8_t reserved1;
-    uint16_t len;
-    uint16_t offset;
-    uint16_t cksm;
-    uint8_t reserved2;
-    union {
-        uint8_t reserved3;
-        uint8_t hci_pkt_type;
-        uint8_t priv_pkt_type;
-    };
-} __packed;
-
 struct esph_bus_ops {
     int (*init)(const struct device *);
     int (*process)(const struct device *);
@@ -63,11 +36,12 @@ enum esph_trans_state {
 struct esph_data {
     const struct device *dev;
     struct net_if *net_if;
-    struct k_mutex gp_lock;
+    struct k_condvar gp_condvar;
     sys_slist_t pending_tx;
     enum esph_drv_state drv_state;
     enum esph_trans_state trans_state;
     struct k_work recv_work;
+    uint8_t recv_buf[CONFIG_WIFI_ESP_HOSTED_RX_BUF_SIZE];
 };
 
 struct esph_config {
@@ -149,10 +123,6 @@ static inline int esph_bus_process(const struct device *esp) {
 static inline void esph_proto_make_scan(struct esph_proto_hdr *hdr) {
     void __esph_proto_make_scan(struct esph_proto_hdr *hdr);
     __esph_proto_make_scan(hdr);
-}
-
-static inline bool esph_proto_is_dummy(struct esph_proto_hdr *hdr) {
-    return hdr->if_type == 0x0F && hdr->if_no == 0x0F && hdr->len == 0;
 }
 
 #endif // ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_

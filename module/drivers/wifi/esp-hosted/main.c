@@ -16,22 +16,14 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(wifi_esp_hosted, CONFIG_WIFI_LOG_LEVEL);
 
-static int esph_wifi_send(const struct device *esp, struct net_pkt *pkt) {
-    int ret;
-
-    goto out;
-out:
-    return ret;
-}
-
-static int esph_scan(const struct device *esp,
+static int esph_wifi_scan(const struct device *esp,
 			   struct wifi_scan_params *params,
 			   scan_result_cb_t cb)
 {
     return 0;
 }
 
-static int esph_connect(const struct device *esp,
+static int esph_wifi_connect(const struct device *esp,
 			    struct wifi_connect_req_params *rq_params)
 {
     int ret;
@@ -41,25 +33,28 @@ out:
     return ret;
 }
 
-static int esph_disconnect(const struct device *esp) {
+static int esph_wifi_disconnect(const struct device *esp) {
 	return 0;
 }
 
-static int esph_ap_enable(const struct device *esp,
+static int esph_wifi_ap_enable(const struct device *esp,
 			    struct wifi_connect_req_params *rq_params)
 {
     return 0;
 }
 
-static int esph_ap_disable(const struct device *esp) {
+static int esph_wifi_ap_disable(const struct device *esp) {
     return 0;
 }
 
-static int esph_iface_status(const struct device *esp,
+static int esph_wifi_iface_status(const struct device *esp,
                 struct wifi_iface_status *status)
 {
     return 0;
 }
+
+#if defined(CONFIG_NET_STATISTICS_WIFI)
+#endif // CONFIG_NET_STATISTICS_WIFI
 
 int __esph_reset(const struct device *esp) {
     int ret;
@@ -87,35 +82,21 @@ out:
     return ret;
 }
 
-static int esph_dev_init(const struct device *esp) {
-    struct esph_data *data = esp->data;
-    data->dev = esp;
-
-    if (k_mutex_init(&data->gp_lock) != 0) {
-        return -ENOMEM;
-    }
-
-    k_mutex_lock(&data->gp_lock, K_FOREVER);
-
-    sys_slist_init(&data->pending_tx);
-    
-    return esph_bus_init(esp);
-}
-
 static const struct wifi_mgmt_ops esph_mgmt_api = {
-    .scan = esph_scan,
-    .connect = esph_connect,
-    .disconnect = esph_disconnect,
-    .ap_enable = esph_ap_enable,
-    .ap_disable = esph_ap_disable,
-    .iface_status = esph_iface_status,
+    .scan = esph_wifi_scan,
+    .connect = esph_wifi_connect,
+    .disconnect = esph_wifi_disconnect,
+    .ap_enable = esph_wifi_ap_enable,
+    .ap_disable = esph_wifi_ap_disable,
+    .iface_status = esph_wifi_iface_status,
 #if defined(CONFIG_NET_STATISTICS_WIFI)
-    .get_stats = esph_get_stats
+    .get_stats = esph_wifi_get_stats
 #endif // CONFIG_NET_STATISTICS_WIFI
 };
 
 static void esph_if_init(struct net_if *iface) {
-
+    const struct device *dev = net_if_get_device(iface);
+    
 }
 
 static int esph_wifi_iface_enable(
@@ -139,6 +120,18 @@ static const struct net_wifi_mgmt_offload esph_api = {
     },
 	.wifi_mgmt_api = &esph_mgmt_api,
 };
+
+static int esph_dev_init(const struct device *esp) {
+    struct esph_data *data = esp->data;
+    data->dev = esp;
+
+    if (k_condvar_init(&data->gp_condvar) != 0) {
+        return -ENOMEM;
+    }
+    sys_slist_init(&data->pending_tx);
+    
+    return esph_bus_init(esp);
+}
 
 #define ESPH_INIT(inst) \
         COND_CODE_1(DT_INST_ON_BUS(inst, spi), \

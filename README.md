@@ -1,4 +1,7 @@
 # esp-hosted-zephyr
+
+> :warning: **Donot use this module yet, this is still going on
+
 An ESP-Hosted-NG driver implementation for Zephyr
 
 Details - https://github.com/espressif/esp-hosted

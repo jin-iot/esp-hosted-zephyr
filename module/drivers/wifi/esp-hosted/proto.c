@@ -8,12 +8,14 @@
 
 #include <zephyr/net/net_ip.h>
 
+LOG_MODULE_DECLARE(wifi_esp_hosted);
+
 /**
  * @brief Protocol header
  */
-
 struct esph_proto_hdr {
     uint8_t if_type : 4;
+#define ESPH_IF_TYPE_ERR      -1
 #define ESPH_IF_TYPE_STA      (uint8_t)0x0
 #define ESPH_IF_TYPE_AP       (uint8_t)0x1
 #define ESPH_IF_TYPE_HCI      (uint8_t)0x2
@@ -93,6 +95,18 @@ struct esph_proto_evt_hdr {
 	uint16_t len;
 } __packed;
 
+struct esph_proto_evt_bootup {
+    struct esph_proto_evt_hdr base;
+	uint8_t len;
+	uint8_t pad[3];
+	uint8_t data[];
+} __packed;
+
+struct esph_proto_evt_bootup_data {
+	uint8_t chip_id;
+	
+};
+
 struct esph_proto_evt_scan {
     struct esph_proto_evt_hdr base;
 	uint8_t bssid[6];
@@ -118,13 +132,6 @@ struct esph_proto_evt_assoc {
 	uint8_t frame[];
 } __packed;
 
-struct esph_proto_evt_bootup {
-    struct esph_proto_evt_hdr base;
-	uint8_t len;
-	uint8_t pad[3];
-	uint8_t data[];
-} __packed;
-
 struct esph_proto_evt_disconn {
     struct esph_proto_evt_hdr base;
 	uint8_t bssid[6];
@@ -132,45 +139,52 @@ struct esph_proto_evt_disconn {
 	uint8_t reason;
 } __packed;
 
-enum esph_cmd_code {
-	ESPH_CMD_CODE_INIT_INTERFACE = 1,
-	ESPH_CMD_CODE_SET_MAC,
-	ESPH_CMD_CODE_GET_MAC,
-	ESPH_CMD_CODE_SCAN_REQUEST,
-	ESPH_CMD_CODE_STA_CONNECT,
-	ESPH_CMD_CODE_STA_DISCONNECT,
-	ESPH_CMD_CODE_DEINIT_INTERFACE,
-	ESPH_CMD_CODE_ADD_KEY,
-	ESPH_CMD_CODE_DEL_KEY,
-	ESPH_CMD_CODE_SET_DEFAULT_KEY,
-	ESPH_CMD_CODE_STA_AUTH,
-	ESPH_CMD_CODE_STA_ASSOC,
-	ESPH_CMD_CODE_SET_IP_ADDR,
-	ESPH_CMD_CODE_SET_MCAST_MAC_ADDR,
-	ESPH_CMD_CODE_GET_TXPOWER,
-	ESPH_CMD_CODE_SET_TXPOWER,
-	ESPH_CMD_CODE_GET_REG_DOMAIN,
-	ESPH_CMD_CODE_SET_REG_DOMAIN,
-	ESPH_CMD_CODE_RAW_TP_ESP_TO_HOST,
-	ESPH_CMD_CODE_RAW_TP_HOST_TO_ESP,
-	ESPH_CMD_CODE_SET_WOW_CONFIG,
-	ESPH_CMD_CODE_MAX,
-};
+static int esph_proto_handle_if(struct esph_priv *priv) {
+	struct esph_proto_hdr *hdr =
+		(struct esph_proto_hdr *)priv->rx_buffer;
+	switch (hdr->if_type) {
+	case ESPH_IF_TYPE_STA: {
+		
+		break;
+	}
+	case ESPH_IF_TYPE_AP: {
 
-static inline void esph_proto_make_req(struct esph_proto_hdr *hdr,
-                uint8_t cmd_code)
-{
-    memset(hdr, 0, sizeof(*hdr));
+		break;
+	}
+	case ESPH_IF_TYPE_HCI: {
 
-    hdr->pkt_type = ESPH_PKT_TYPE_CMD_REQ;
-    hdr->if_type = ESPH_IF_TYPE_STA;
-    hdr->len = sys_cpu_to_le16(sizeof(*hdr));
-    hdr->offset = sys_cpu_to_le16(sizeof(*hdr));
-    // hdr->cksm = sys_cpu_to_le16(esph_proto_compute_cksm(hdr));
+		break;
+	}
+	}
+	
 }
 
-void __esph_proto_make_scan(struct esph_proto_hdr *hdr) {
-    memset(hdr, 0, sizeof(*hdr));
-    
+static int esph_proto_hdr_read(struct esph_priv *esp) {
+	int ret;
+	struct esph_proto_hdr dummy = {
+		.if_no = 0xF,
+	};
+	struct esph_proto_hdr __hdr;
+	struct esph_proto_hdr *hdr = &__hdr;
 
+	ret = esph_bus_transceive(esp, &dummy, sizeof(dummy), hdr, sizeof(*hdr));
+	if (ret < 0) {
+		LOG_ERR("Failed to read protocol header: %d", ret);
+		goto out;
+	}
+
+	hdr->len = sys_le16_to_cpu(hdr->len);
+	hdr->offset = sys_le16_to_cpu(hdr->offset);
+	hdr->cksm = sys_le16_to_cpu(hdr->cksm);
+
+out:
+	return ret;
+}
+
+int __esph_proto_process(struct esph_priv *esp) {
+	int ret;
+
+
+out:
+	return ret;
 }

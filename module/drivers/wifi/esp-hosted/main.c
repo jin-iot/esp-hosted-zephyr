@@ -26,8 +26,8 @@ static int esph_wifi_scan(const struct device *esp,
 static int esph_wifi_connect(const struct device *esp,
 			    struct wifi_connect_req_params *rq_params)
 {
-    int ret;
-    struct esph_data *data = esp->data;
+    int ret = 0;
+    goto out;
 
 out:
     return ret;
@@ -54,33 +54,12 @@ static int esph_wifi_iface_status(const struct device *esp,
 }
 
 #if defined(CONFIG_NET_STATISTICS_WIFI)
-#endif // CONFIG_NET_STATISTICS_WIFI
-
-int __esph_reset(const struct device *esp) {
-    int ret;
-    const struct esph_config *cfg = esp->config;
-
-    ret = gpio_pin_configure_dt(&cfg->reset,
-        GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_LOW);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = gpio_pin_set_dt(&cfg->reset, 1);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = gpio_pin_set_dt(&cfg->reset, 0);
-    if (ret < 0) {
-        goto out;
-    }
-
-    k_sleep(K_MSEC(300));
-
-out:
-    return ret;
+static int esph_wifi_get_stats(const struct device *dev,
+                struct net_stats_wifi *stats)
+{
+    return 0;
 }
+#endif // CONFIG_NET_STATISTICS_WIFI
 
 static const struct wifi_mgmt_ops esph_mgmt_api = {
     .scan = esph_wifi_scan,
@@ -96,14 +75,15 @@ static const struct wifi_mgmt_ops esph_mgmt_api = {
 
 static void esph_if_init(struct net_if *iface) {
     const struct device *dev = net_if_get_device(iface);
-    
+    struct esph_priv *esp = dev->data;
+    esp->iface = iface;
 }
 
 static int esph_wifi_iface_enable(
                 const struct net_if *iface,
                 bool enable)
 {
-
+    return 0;
 }
 
 enum offloaded_net_if_types esph_wifi_iface_get_type() {
@@ -121,31 +101,47 @@ static const struct net_wifi_mgmt_offload esph_api = {
 	.wifi_mgmt_api = &esph_mgmt_api,
 };
 
-static int esph_dev_init(const struct device *esp) {
-    struct esph_data *data = esp->data;
-    data->dev = esp;
+static int esph_dev_init(const struct device *dev) {
+    int ret;
+    struct esph_priv *esp = dev->data;
+    esp->esp_dev = dev;
+    esp->drv_state = ESPH_DRV_STATE_DEV_INIT;
 
-    if (k_condvar_init(&data->gp_condvar) != 0) {
-        return -ENOMEM;
+    sys_slist_init(&esp->pending_tx);
+
+    ret = k_mutex_init(&esp->gp_mutex);
+    if (ret < 0) {
+        LOG_ERR("Failed to initialize mutex: %d", ret);
+        goto out;
     }
-    sys_slist_init(&data->pending_tx);
+
+    ret = k_condvar_init(&esp->gp_cond);
+    if (ret < 0) {
+        LOG_ERR("Failed to initialize condvar: %d", ret);
+        goto out;
+    }
     
-    return esph_bus_init(esp);
+    ret = esph_bus_init(esp);
+
+    k_condvar_wait(&esp->gp_cond, &esp->gp_mutex, K_FOREVER);
+
+out:
+    return ret;
 }
 
-#define ESPH_INIT(inst) \
-        COND_CODE_1(DT_INST_ON_BUS(inst, spi), \
-            (ESPH_DEFINE_SPI_BUS(inst)), \
+#define ESPH_INIT(_inst) \
+        COND_CODE_1(DT_INST_ON_BUS(_inst, spi), \
+            (ESPH_DEFINE_SPI_BUS(_inst)), \
             ( \
-                COND_CODE_1(DT_INST_ON_BUS(inst, sdio), \
-                    (ESPH_DEFINE_SDIO_BUS(inst)), \
+                COND_CODE_1(DT_INST_ON_BUS(_inst, sdhc), \
+                    (ESPH_DEFINE_SDIO_BUS(_inst)), \
                     (BUILD_ASSERT(0, "Unsupported bus type")) \
                 ) \
             ) \
         ) \
-        NET_DEVICE_OFFLOAD_INIT(esp_hosted_##inst, "esp-hosted"#inst,  \
+        NET_DEVICE_OFFLOAD_INIT(esp_hosted_ ## _inst, "esp-hosted" # _inst,  \
             esph_dev_init, NULL, \
-            &esph_data_##inst, &esph_config_##inst, \
+            &esph_priv ## _inst, NULL, \
             CONFIG_WIFI_INIT_PRIORITY, &esph_api, NET_ETH_MTU);
 
 DT_INST_FOREACH_STATUS_OKAY(ESPH_INIT)

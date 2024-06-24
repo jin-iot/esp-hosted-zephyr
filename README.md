@@ -1,9 +1,24 @@
 # esp-hosted-zephyr
-esp-hosted-ng driver for Zephyr
+An ESP-Hosted-NG driver implementation for Zephyr
 
-details - https://github.com/espressif/esp-hosted
+Details - https://github.com/espressif/esp-hosted
+
+Things for people who implement IEEE 802.11 network drivers on Zephyr must read - https://docs.zephyrproject.org/latest/connectivity/networking/api/wifi.html
 
 ## esp-hosted structure
+
+### Hardware setups
+
+#### Common
+ - reset GPIO - GPIO output/Active Low
+
+#### SPI interface
+ - SPI Mode 2 (CPOL only), default speed is 10MHz
+ - data-ready GPIO - GPIO input/Active High/IRQ edge rising
+ - handshake(Host TX okay) GPIO - GPIO input/Active High/IRQ edge rising
+
+#### SDIO (SDHC) interface
+ - fdsa
 
 ### esp-hosted data types
  -  <table>
@@ -225,6 +240,19 @@ details - https://github.com/espressif/esp-hosted
                 <td>0 ~ le16 max</td>
             </tr>
         </table>
+
+         -  <table>
+                <tr>
+                    <td colspan="2">struct esph_proto_evt_bootup</td>
+                    <td colspan="2">payload for ESPH_PROTO_EVT_BOOTUP</td>
+                </tr>
+                <tr>
+                    <td><b>field</b></td>
+                    <td><b>type</b></td>
+                    <td><b>desc</b></td>
+                    <td><b>possible values</b></td>
+                </tr>
+            </table>
 
 ### Sequence
 1. device init

@@ -4,125 +4,131 @@
  * SPDX-License-Identifier: BSL-1.0
  */
 
-#ifndef ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_
-#define ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_
+#ifndef ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESPH_H_
+#define ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESPH_H_
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/net/net_pkt.h>
 #include <zephyr/net/buf.h>
+#include <zephyr/net/net_if.h>
 #include <zephyr/net/wifi_mgmt.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 
-struct esph_bus_ops {
-    int (*init)(const struct device *);
-    int (*process)(const struct device *);
-};
-
 enum esph_drv_state {
-    ESPH_DRV_STATE_INIT = 0x0000,
-    ESPH_DRV_STATE_IDLE = 0x0001,
-    ESPH_DRV_STATE_SCAN = 0x0002,
+    ESPH_DRV_STATE_ERR = 0,
+    ESPH_DRV_STATE_DEV_INIT = BIT(0),
+    ESPH_DRV_STATE_IF_INIT = BIT(0),
+    ESPH_DRV_STATE_IDLE = BIT(1),
+    ESPH_DRV_STATE_DRDY = BIT(2),
+    ESPH_DRV_STATE_HS = BIT(3),
 };
 
-enum esph_trans_state {
-    ESPH_TRANS_STATE_IDLE,
-    ESPH_TRANS_STATE_INIT,
-    ESPH_TRANS_STATE_DATA_READY,
+enum esph_wifi_state {
+    ESPH_DRV_STA_STOPPED,
+	ESPH_DRV_STA_STARTED,
+	ESPH_DRV_STA_CONNECTING,
+	ESPH_DRV_STA_CONNECTED,
+	ESPH_DRV_AP_CONNECTED,
+	ESPH_DRV_AP_DISCONNECTED,
+	ESPH_DRV_AP_STOPPED,
 };
 
-struct esph_data {
-    const struct device *dev;
-    struct net_if *net_if;
-    struct k_condvar gp_condvar;
+enum esph_rx_type {
+    ESPH_RX_TYPE_ERR,
+    ESPH_RX_TYPE_STA_CMD_RES,
+    ESPH_RX_TYPE_AP_CMD_RES,
+};
+
+#define ESPH_DRV_STATE_DATA_CLEAR(_state) \
+    (_state & ~(ESPH_DRV_STATE_DRDY | ESPH_DRV_STATE_HS))
+
+struct esph_priv;
+
+/**
+ * @brief ESP Hosted bus-specific operations
+ */
+struct esph_bus_ops {
+    int (*init)(struct esph_priv *);
+    int (*transceive)(struct esph_priv *, void *, size_t, void *, size_t);
+    int (*process)(struct esph_priv *);
+};
+
+/**
+ * @brief ESP Hosted base data
+ */
+struct esph_priv {
+    const struct device *esp_dev;
+    struct net_if *iface;
+    uint8_t rx_buffer[CONFIG_WIFI_ESP_HOSTED_RX_BUF_SIZE];
+    struct k_condvar gp_cond;
+    struct k_mutex gp_mutex;
+    const struct gpio_dt_spec reset;
+    const struct esph_bus_ops *bus_ops;
     sys_slist_t pending_tx;
     enum esph_drv_state drv_state;
-    enum esph_trans_state trans_state;
-    struct k_work recv_work;
-    uint8_t recv_buf[CONFIG_WIFI_ESP_HOSTED_RX_BUF_SIZE];
 };
 
-struct esph_config {
-    struct gpio_dt_spec reset;
-    struct esph_bus_ops *bus_ops;
-};
+#define ESPH_DEFINE_BASE(_inst, _bus_ops) \
+        .base = { \
+            .reset = GPIO_DT_SPEC_INST_GET(_inst, reset_gpios), \
+            .bus_ops = _bus_ops, \
+        }, \
 
 #if defined(CONFIG_WIFI_ESP_HOSTED_SPI)
 #include <zephyr/drivers/spi.h>
-extern struct esph_bus_ops __esph_spi_bus_ops;
-struct esph_spi_config {
-    struct esph_config base;
-    struct spi_dt_spec bus;
-    struct gpio_dt_spec data_ready;
-    struct gpio_dt_spec handshake;
-};
 
-struct esph_spi_data {
-    struct esph_data base;
+struct esph_spi_priv {
+    struct esph_priv base;
+    struct spi_dt_spec bus;
+    const struct gpio_dt_spec data_ready;
+    const struct gpio_dt_spec handshake;
     struct gpio_callback handshake_cb;
     struct gpio_callback data_ready_cb;
     struct k_work trans_work;
 };
+extern const struct esph_bus_ops __esph_spi_bus_ops;
 
 #define ESPH_SPI_OPS (SPI_OP_MODE_MASTER | \
-                      SPI_MODE_CPHA | \
                       SPI_MODE_CPOL | \
                       SPI_TRANSFER_MSB | \
                       SPI_WORD_SET(8))
-#define ESPH_DEFINE_SPI_BUS(inst) \
-        static struct esph_spi_config esph_config_##inst = { \
-            .base = { \
-                .reset = GPIO_DT_SPEC_INST_GET(inst, reset_gpios), \
-                .bus_ops = &__esph_spi_bus_ops, \
-            }, \
-            .bus = SPI_DT_SPEC_INST_GET(inst, ESPH_SPI_OPS, 0), \
-            .data_ready = GPIO_DT_SPEC_INST_GET(inst, data_ready_gpios), \
-            .handshake = GPIO_DT_SPEC_INST_GET(inst, handshake_gpios), \
-        }; \
-        static struct esph_spi_data esph_data_##inst;
-        
+#define ESPH_DEFINE_SPI_BUS(_inst) \
+        static struct esph_spi_priv esph_priv ## _inst = { \
+            ESPH_DEFINE_BASE(_inst, &__esph_spi_bus_ops) \
+            .bus = SPI_DT_SPEC_INST_GET(_inst, ESPH_SPI_OPS, 0), \
+            .data_ready = GPIO_DT_SPEC_INST_GET(_inst, data_ready_gpios), \
+            .handshake = GPIO_DT_SPEC_INST_GET(_inst, handshake_gpios), \
+        };
+
+#else
+#define ESPH_DEFINE_SPI_BUS(inst)
 #endif // CONFIG_WIFI_ESP_HOSTED_SPI
 
 #if defined(CONFIG_WIFI_ESP_HOSTED_SDHC)
 #include <zephyr/drivers/sdhc.h>
-extern struct esph_bus_ops __esph_sdio_bus_ops;
-struct esph_sdio_bus {
-    struct esph_bus_data data;
-    struct sdio_dt_spec bus;
-    struct gpio_dt_spec resetn;
-}
-#define ESPH_SDIO_OPS (SDIO_BUS_SPEED_HS | SDIO_BUS_WIDTH_4)
-#define ESPH_DEFINE_SDIO_BUS(inst) \
-        static struct esph_sdio_bus esph_bus_data_##inst = { \
-            .base = { \
-                .reset = GPIO_DT_SPEC_INST_GET(inst, resetn_gpios), \
-                .bus_ops = &__esph_spi_bus_ops, \
-            }, \
-            .data.dev = DEVICE_DT_GET(DT_NODELABEL(inst)), \
-            .bus = SDIO_DT_SPEC_INST_GET(inst, ESPH_SDIO_OPS), \
-        };
+#define ESPH_DEFINE_SDIO_BUS(inst)
+#else
+#define ESPH_DEFINE_SDIO_BUS(inst)
 #endif // CONFIG_WIFI_ESP_HOSTED_SDIO
 
-static inline int esph_reset(const struct device *esp) {
-    int __esph_reset(const struct device *esp);
-    return __esph_reset(esp);
+static inline int esph_bus_init(struct esph_priv *esp) {
+    return esp->bus_ops->init(esp);
 }
 
-static inline int esph_bus_init(const struct device *esp) {
-    const struct esph_config *cfg = esp->config;
-    return cfg->bus_ops->init(esp);
+static inline int esph_bus_transceive(struct esph_priv *esp,
+                void *odata, size_t olen,
+                void *idata, size_t ilen)
+{
+    return esp->bus_ops->
+        transceive(esp, odata, olen, idata, ilen);
 }
 
-static inline int esph_bus_process(const struct device *esp) {
-    const struct esph_config *cfg = esp->config;
-    return cfg->bus_ops->process(esp);
+static inline int esph_proto_process(struct esph_priv *esp) {
+    int __esph_proto_process(struct esph_priv *esp);
+    return __esph_proto_process(esp);
 }
 
-static inline void esph_proto_make_scan(struct esph_proto_hdr *hdr) {
-    void __esph_proto_make_scan(struct esph_proto_hdr *hdr);
-    __esph_proto_make_scan(hdr);
-}
-
-#endif // ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESP_HOSTED_H_
+#endif // ZEPHYR_DRIVERS_WIFI_ESP_HOSTED_ESPH_H_

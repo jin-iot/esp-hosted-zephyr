@@ -22,6 +22,14 @@ config WIFI_ESP_HOSTED_SPI
 config WIFI_ESP_HOSTED_SDHC
     bool "esp-hosted SDHC interface"
     default n
-    select SDIO
+    select SDHC
 
 endif # WIFI_ESP_HOSTED
+
+if BT && WIFI_ESP_HOSTED
+
+config BT_ESP_HOSTED_HCI
+    bool "esp-hosted Bluetooth HCI driver"
+    default y
+
+endif # BT

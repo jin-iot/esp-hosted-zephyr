@@ -4,21 +4,29 @@
  * SPDX-License-Identifier: BSL-1.0
  */
 
-#include "esph.h"
+#include "esp_hosted.h"
 
 #include <zephyr/net/net_ip.h>
 
 LOG_MODULE_DECLARE(wifi_esp_hosted);
+
+#define ESPH_ALLOC_PKT(_pkt, _payload) \
+	k_malloc( \
+		sizeof(struct esph_proto_hdr) + \
+		sizeof(struct esph_proto_ ## _pkt ## _hdr) + \
+		sizeof(struct esph_proto_ ## _payload) \
+	)
 
 /**
  * @brief Protocol header
  */
 struct esph_proto_hdr {
     uint8_t if_type : 4;
-#define ESPH_IF_TYPE_ERR      -1
 #define ESPH_IF_TYPE_STA      (uint8_t)0x0
 #define ESPH_IF_TYPE_AP       (uint8_t)0x1
+#if defined(CONFIG_BT) && defined(CONFIG_BT_ESP_HOSTED_HCI)
 #define ESPH_IF_TYPE_HCI      (uint8_t)0x2
+#endif // CONFIG_BT && CONFIG_BT_ESP_HOSTED_HCI
 #define ESPH_IF_TYPE_INTERNAL (uint8_t)0x3
 #define ESPH_IF_TYPE_TEST     (uint8_t)0x4
     uint8_t if_no : 4;
@@ -139,9 +147,17 @@ struct esph_proto_evt_disconn {
 	uint8_t reason;
 } __packed;
 
-static int esph_proto_handle_if(struct esph_priv *priv) {
-	struct esph_proto_hdr *hdr =
-		(struct esph_proto_hdr *)priv->rx_buffer;
+static int esph_proto_handle_sta(struct esph_proto_hdr *hdr) {
+	int ret;
+
+
+out:
+	return ret;
+}
+
+static int esph_proto_handle_if(struct esph_priv *priv, struct esph_proto_hdr *hdr) {
+	int ret;
+	
 	switch (hdr->if_type) {
 	case ESPH_IF_TYPE_STA: {
 		
@@ -151,23 +167,37 @@ static int esph_proto_handle_if(struct esph_priv *priv) {
 
 		break;
 	}
+#if defined(CONFIG_BT) && defined(CONFIG_BT_ESP_HOSTED_HCI)
 	case ESPH_IF_TYPE_HCI: {
 
 		break;
 	}
+#endif
+	case ESPH_IF_TYPE_INTERNAL: {
+
+		break;
 	}
-	
+	}
+
+out:
+	return ret;
 }
 
-static int esph_proto_hdr_read(struct esph_priv *esp) {
+int __esph_proto_make_scan(struct esph_priv *esp) {
 	int ret;
-	struct esph_proto_hdr dummy = {
-		.if_no = 0xF,
-	};
-	struct esph_proto_hdr __hdr;
-	struct esph_proto_hdr *hdr = &__hdr;
 
-	ret = esph_bus_transceive(esp, &dummy, sizeof(dummy), hdr, sizeof(*hdr));
+
+
+out:
+	return ret;
+}
+
+static int esph_proto_data_process(struct esph_priv *esp, struct esph_proto_hdr *hdr) {
+	int ret;
+	uint8_t *tx_buf = esp->buf.tx_buf;
+	size_t tx_size = esph_bus_get_tx_size(esp);
+	
+	ret = esph_bus_transceive(esp, tx_buf, tx_size, hdr, sizeof(*hdr));
 	if (ret < 0) {
 		LOG_ERR("Failed to read protocol header: %d", ret);
 		goto out;
@@ -183,7 +213,13 @@ out:
 
 int __esph_proto_process(struct esph_priv *esp) {
 	int ret;
+	uint8_t rx_buf[CONFIG_WIFI_ESP_HOSTED_BUS_BUF_SIZE];
 
+	ret = esph_proto_data_process(esp, (struct esph_proto_hdr *)rx_buf);
+	if (ret < 0) {
+		LOG_ERR("Failed to read protocol header: %d", ret);
+		goto out;
+	}
 
 out:
 	return ret;

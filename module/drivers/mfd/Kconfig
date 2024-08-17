@@ -1,0 +1,1 @@
+source "$(ZEPHYR_ESP_HOSTED_MODULE_DIR)/drivers/mfd/Kconfig.esp-hosted"

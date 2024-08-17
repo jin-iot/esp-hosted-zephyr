@@ -1,0 +1,3 @@
+if BT_HCI
+source "$(ZEPHYR_ESP_HOSTED_MODULE_DIR)/drivers/bluetooth/hci/Kconfig"
+endif

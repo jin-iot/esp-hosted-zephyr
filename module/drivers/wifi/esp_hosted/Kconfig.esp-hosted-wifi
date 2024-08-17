@@ -1,0 +1,15 @@
+config WIFI_ESP_HOSTED
+    bool "ESP Hosted WiFi"
+    depends on MFD_ESP_HOSTED && DT_HAS_ESPRESSIF_WIFI_ESP_HOSTED_ENABLED
+    select WIFI
+    select WIFI_OFFLOAD
+    select WIFI_USE_NATIVE_NETWORKING
+    select NET_L2_WIFI_MGMT
+    help
+      Enable ESP Hosted WiFi driver.
+
+if WIFI_ESP_HOSTED
+
+
+
+endif # WIFI_ESP_HOSTED

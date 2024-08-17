@@ -1,0 +1,1 @@
+source "$(ZEPHYR_ESP_HOSTED_MODULE_DIR)/drivers/wifi/esp_hosted/Kconfig.esp-hosted-wifi"

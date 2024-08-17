@@ -1,0 +1,8 @@
+config BT_ESP_HOSTED
+    bool "Espressif esp-hosted Bluetooth HCI support"
+    default y
+    depends on DT_HAS_ESPRESSIF_HCI_ESP_HOSTED_ENABLED
+    help
+        Enable Bluetooth support for Espressif esp-hosted devices.
+        More information about the esp-hosted project could be found at
+        https://github.com/espressif/esp-hosted

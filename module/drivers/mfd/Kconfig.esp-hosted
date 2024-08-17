@@ -1,0 +1,25 @@
+# esp-hosted WiFi driver options
+
+config MFD_ESP_HOSTED
+    bool "Espressif esp-hosted device support"
+    default y
+    depends on DT_HAS_ESPRESSIF_ESP_HOSTED_ENABLED
+    select MFD
+
+if MFD_ESP_HOSTED
+
+config MFD_ESP_HOSTED_BUS_BUF_SIZE
+    int "esp-hosted buffers for transceive size"
+    default 1600
+
+config MFD_ESP_HOSTED_SPI
+    bool "esp-hosted SPI interface"
+    default y
+    select SPI
+
+config MFD_ESP_HOSTED_SDHC
+    bool "esp-hosted SDHC interface"
+    default n
+    select SDHC
+
+endif # MFD_ESP_HOSTED

@@ -1,0 +1,13 @@
+# description: ESP-Hosted Module over SPI
+
+# compatible: "espressif,esp-hosted"
+# on-bus: sdhc
+
+# include: sdhc.yaml
+
+# properties:
+#   reset-gpios:
+#     type: phandle-array
+#     required: true
+
+# bus: esp-hosted

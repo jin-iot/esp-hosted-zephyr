@@ -1,0 +1,4 @@
+description: ESP-Hosted WIFI Module
+
+compatible: "espressif,esp-hosted-wifi"
+on-bus: esp-hosted

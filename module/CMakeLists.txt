@@ -1,3 +1,5 @@
-message(STATUS "esp-hosted driver module")
-
-add_subdirectory(drivers/wifi/esp-hosted)
+message(STATUS "♥♥♥♥♥ esp-hosted driver module ♥♥♥♥♥")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_subdirectory(drivers/wifi)
+add_subdirectory(drivers/bluetooth)
+add_subdirectory(drivers/mfd)

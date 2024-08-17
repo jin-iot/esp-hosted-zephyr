@@ -8,7 +8,26 @@ Details - https://github.com/espressif/esp-hosted
 
 Things for people who implement IEEE 802.11 network drivers on Zephyr must read - https://docs.zephyrproject.org/latest/connectivity/networking/api/wifi.html
 
-## esp-hosted structure
+## Current status
+
+<table>
+    <th>
+        <td>SPI</td>
+        <td>SDHC</td>
+    </th>
+    <tr>
+        <td>IEEE 802.11 (WiFi)</td>
+        <td>O</td>
+        <td>X</td>
+    </tr>
+    <tr>
+        <td>IEEE 802.15.1 (Bluetooth)</td>
+        <td>X</td>
+        <td>X</td>
+    </tr>
+</table>
+
+## ESP-Hosted structure
 
 ### Hardware setups
 
@@ -23,14 +42,14 @@ Things for people who implement IEEE 802.11 network drivers on Zephyr must read 
 #### SDIO (SDHC) interface
  - fdsa
 
-### esp-hosted data types
+### ESP-Hosted data types
  -  <table>
         <tr>
             <td colspan="2">
                 <b>struct esph_proto_hdr</b>
             </td>
             <td colspan="2">
-                Main header of the esp-hosted protocol
+                Main header of the ESP-Hosted protocol
             </td>
         </tr>
         <tr>

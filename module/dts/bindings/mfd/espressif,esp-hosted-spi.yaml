@@ -1,12 +1,15 @@
-description: esp-hosted WiFi module
+description: ESP-Hosted Module over SPI
 
 compatible: "espressif,esp-hosted"
+on-bus: spi
+
+include: spi-device.yaml
 
 properties:
   reset-gpios:
     type: phandle-array
     required: true
-
+  
   data-ready-gpios:
     type: phandle-array
     required: true
@@ -14,4 +17,4 @@ properties:
   handshake-gpios:
     type: phandle-array
 
-include: spi-device.yaml
+bus: esp-hosted

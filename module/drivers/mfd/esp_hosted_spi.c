@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSL-1.0
  */
 
-#include "esph.h"
+#include "esp_hosted.h"
 
 #include <zephyr/drivers/spi.h>
-
 #include <zephyr/logging/log.h>
-LOG_MODULE_DECLARE(wifi_esp_hosted);
+
+struct esph_spi_buf {
+    struct spi_buf buf;
+    sys_snode_t node;
+};
 
 static inline struct esph_spi_priv *esph_to_spi_priv(struct esph_priv *esp) {
     return (struct esph_spi_priv *)esp;
@@ -119,7 +122,4 @@ static int esph_spi_bus_init(struct esph_spi_priv *esp) {
 
 const struct esph_bus_ops __esph_spi_bus_ops = {
     .init = (int (*)(struct esph_priv *))esph_spi_bus_init,
-    .transceive =
-        (int (*)(struct esph_priv *, void *, size_t, void *, size_t))
-            esph_spi_bus_transceive,
 };
